@@ -1,0 +1,127 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #FAFAFA;
+  --foreground: #111111;
+  --color-accent: #32A3E6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--color-accent);
+  --font-sans: var(--font-inter);
+  --font-space: var(--font-space);
+  --font-corpta: var(--font-corpta), sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+}
+
+/* ── Custom Global Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #32A3E6 !important;
+  border-radius: 6px !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #1F8CCB !important;
+}
+
+html, body {
+  scrollbar-color: #32A3E6 #FAFAFA !important;
+  scrollbar-width: thin !important;
+}
+
+/* ── Global Selection Styling ── */
+::selection {
+  background-color: #32A3E6;
+  color: #111111;
+}
+::-moz-selection {
+  background-color: #32A3E6;
+  color: #111111;
+}
+
+.card-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(200px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(50,163,230,0.08), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.card-spotlight:hover::before {
+  opacity: 1;
+}
+
+/* ── Footer: animated email underline ── */
+.footer-email-link span.relative::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 1.5px;
+  background-color: #32A3E6;
+  transition: width 0.35s ease-out;
+}
+
+.footer-email-link:hover span.relative::after {
+  width: 100%;
+}
+
+/* ── Footer: social link stagger reveal ── */
+.footer-social-link {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.footer-socials-in-view .footer-social-link {
+  animation: footerSocialIn 0.45s ease-out forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes footerSocialIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* ── Play affordance: frosted glass that never resolves to a solid disc ──
+   The card scrim darkens to near-black on hover, so a flat translucent white
+   circle reads as opaque there. Layering a low-alpha gradient over a strong
+   backdrop blur plus inset highlights keeps the lens legible as glass. */
+.glass-play {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.24) 0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.14),
+    0 10px 28px rgba(0, 0, 0, 0.3);
+}
+
+.glass-play svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
