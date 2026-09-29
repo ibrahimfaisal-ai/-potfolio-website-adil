@@ -25,8 +25,8 @@ export const servicesData: ServiceItem[] = [
     theme: { bg: "bg-[#FAFAFA]", text: "text-[#111111]", accent: "text-[#32A3E6]" }
   },
   {
-    name: "AI UGC Ads",
-    watermark: "UGC",
+    name: "AI Commercials Expert",
+    watermark: "EXPERT",
     deliverables: "META · TIKTOK · INSTAGRAM · REELS",
     description:
       "Creator-style ads that look and feel like real footage: talking-head testimonials, unboxings, try-ons and day-in-the-life routines, made with Seedance and built to win the first three seconds of the feed.",
