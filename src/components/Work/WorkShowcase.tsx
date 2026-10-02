@@ -12,9 +12,39 @@ import VideoLightbox from "./VideoLightbox";
 
 type Filter = CategoryId | "all";
 
-export default function WorkShowcase() {
+const workPath = (slug: string) => `/work/${slug}`;
+const slugFromPath = (path: string) => /^\/work\/([^/]+)\/?$/.exec(path)?.[1] ?? null;
+const findVideo = (slug: string | null) => work.find((v) => v.slug === slug) ?? null;
+
+export default function WorkShowcase({ initialSlug = null }: { initialSlug?: string | null }) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [active, setActive] = useState<WorkVideo | null>(null);
+  const [active, setActive] = useState<WorkVideo | null>(() => findVideo(initialSlug));
+  // True when this page pushed the /work/<slug> history entry, so closing can pop it.
+  const pushed = useRef(false);
+
+  // Every video gets its own URL: opening pushes /work/<slug>, closing returns
+  // to the page it came from, and back/forward follow the address bar.
+  const open = useCallback((video: WorkVideo) => {
+    setActive(video);
+    window.history.pushState(null, "", workPath(video.slug));
+    pushed.current = true;
+  }, []);
+
+  const close = useCallback(() => {
+    setActive(null);
+    if (pushed.current) {
+      pushed.current = false;
+      window.history.back();
+    } else if (slugFromPath(window.location.pathname)) {
+      window.history.replaceState(null, "", "/");
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => setActive(findVideo(slugFromPath(window.location.pathname)));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const railRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
@@ -210,7 +240,7 @@ export default function WorkShowcase() {
                   key={v.slug}
                   video={v}
                   index={i}
-                  onOpen={setActive}
+                  onOpen={open}
                   shouldIgnoreClick={() => drag.current.moved}
                 />
               ))}
@@ -244,7 +274,7 @@ export default function WorkShowcase() {
                     index={i}
                     // Widen the first tile only when it evens out the two-column grid.
                     feature={landscape.length > 2 && landscape.length % 2 === 1 && i === 0}
-                    onOpen={setActive}
+                    onOpen={open}
                   />
                 ))}
               </div>
@@ -253,7 +283,7 @@ export default function WorkShowcase() {
         )}
       </section>
 
-      <VideoLightbox video={active} onClose={() => setActive(null)} />
+      <VideoLightbox video={active} onClose={close} />
     </>
   );
 }

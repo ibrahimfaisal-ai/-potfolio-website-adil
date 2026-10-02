@@ -6,13 +6,13 @@ const About = dynamic(() => import("@/src/components/About/About"));
 const Services = dynamic(() => import("@/src/components/Services/Services"));
 const Footer = dynamic(() => import("@/src/components/Footer/Footer"));
 
-export default function Home() {
+export default function Home({ initialSlug }: { initialSlug?: string }) {
   return (
     <main className="flex flex-col w-full relative overflow-clip">
       <Hero />
       <About />
       <Services />
-      <DeferredSections />
+      <DeferredSections initialSlug={initialSlug} />
       <Footer />
     </main>
   );

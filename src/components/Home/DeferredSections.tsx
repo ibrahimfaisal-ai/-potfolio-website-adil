@@ -6,6 +6,6 @@ import dynamic from "next/dynamic";
 // grid, and players that nothing above the fold needs.
 const WorkShowcase = dynamic(() => import("@/src/components/Work/WorkShowcase"), { ssr: false });
 
-export default function DeferredSections() {
-  return <WorkShowcase />;
+export default function DeferredSections({ initialSlug }: { initialSlug?: string }) {
+  return <WorkShowcase initialSlug={initialSlug} />;
 }
