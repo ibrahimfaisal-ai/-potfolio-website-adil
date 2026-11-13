@@ -124,7 +124,7 @@ export default function WorkShowcase({ initialSlug = null }: { initialSlug?: str
   };
 
   const activeBlurb = filter === "all"
-    ? "AI commercials, film scenes, product campaigns and creator-style ads across every category."
+    ? "AI commercials, film scenes, product campaigns, creator-style ads and short-form edits across every category."
     : categories.find((c) => c.id === filter)?.blurb ?? "";
 
   return (
