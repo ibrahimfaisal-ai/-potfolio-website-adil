@@ -7,9 +7,47 @@
  *    previews play muted and the lightbox plays with sound.
  *  - `youtube` items embed on click, for any future long-form uploads.
  *
- * `category` is the axis the filter uses. `orientation` decides which block an
- * item renders in, because 9:16 and 16:9 need different tiles.
+ * Every category belongs to one portfolio, so a video's portfolio follows from
+ * its category: AI-generated and UGC work in one, traditional editing of real
+ * footage in the other. `category` is the axis the filter uses within a
+ * portfolio. `orientation` decides which block an item renders in, because
+ * 9:16 and 16:9 need different tiles.
  */
+
+export type PortfolioId = "ai-ugc" | "editing";
+
+export type Portfolio = {
+  id: PortfolioId;
+  label: string;
+  /** One line under the label on the portfolio switch. */
+  tagline: string;
+  /** Shown under the category filter when "All" is selected. */
+  blurb: string;
+};
+
+export const portfolios: Portfolio[] = [
+  {
+    id: "ai-ugc",
+    label: "AI & UGC Videos",
+    tagline: "AI commercials made with Seedance, film scenes and creator-style UGC ads.",
+    blurb: "AI commercials, film scenes, product campaigns and creator-style ads across every category.",
+  },
+  {
+    id: "editing",
+    label: "Video Editing",
+    tagline: "Traditional editing on real footage: podcast cuts, talking heads and property reels.",
+    blurb: "Podcast cuts, talking-head edits and property reels, all edited from real footage.",
+  },
+];
+
+/** Shown when a visitor arrives without a /#<portfolio> link or a /work/<slug> URL. */
+export const defaultPortfolio: PortfolioId = "ai-ugc";
+
+/**
+ * Fired on window with the portfolio id as `detail` whenever the showcase
+ * switches portfolio, so the navbar can highlight the matching link.
+ */
+export const PORTFOLIO_EVENT = "work:portfolio";
 
 export type CategoryId =
   | "beauty-skincare"
@@ -21,18 +59,26 @@ export type CategoryId =
   | "real-estate"
   | "talking-head";
 
-export type Category = { id: CategoryId; label: string; blurb: string };
+export type Category = { id: CategoryId; portfolio: PortfolioId; label: string; blurb: string };
 
 export const categories: Category[] = [
-  { id: "beauty-skincare", label: "Beauty & Skincare", blurb: "Skincare routines, makeup demos, and product reviews" },
-  { id: "fashion-style",   label: "Fashion & Style",   blurb: "Try-ons, lookbooks, eyewear, and street style" },
-  { id: "food-beverage",  label: "Food & Beverage",  blurb: "Drinks and lifestyle spots built around the product" },
-  { id: "cinematic-film",  label: "Cinematic & Film", blurb: "Film scenes, music videos, and narrative spots" },
-  { id: "comedy-viral",    label: "Comedy & Viral",   blurb: "Meme formats and comedic sketches built to be shared" },
-  { id: "apps-tech",       label: "Apps & Tech",      blurb: "App demos and software shown in real use" },
-  { id: "real-estate",     label: "Real Estate",      blurb: "Listing reels, agent-led tours and property walkthroughs" },
-  { id: "talking-head",    label: "Talking Head & Podcast", blurb: "Founder clips, podcast cuts and direct-response edits" },
+  { id: "beauty-skincare", portfolio: "ai-ugc",  label: "Beauty & Skincare", blurb: "Skincare routines, makeup demos, and product reviews" },
+  { id: "fashion-style",   portfolio: "ai-ugc",  label: "Fashion & Style",   blurb: "Try-ons, lookbooks, eyewear, and street style" },
+  { id: "food-beverage",   portfolio: "ai-ugc",  label: "Food & Beverage",   blurb: "Drinks and lifestyle spots built around the product" },
+  { id: "cinematic-film",  portfolio: "ai-ugc",  label: "Cinematic & Film",  blurb: "Film scenes, music videos, and narrative spots" },
+  { id: "comedy-viral",    portfolio: "ai-ugc",  label: "Comedy & Viral",    blurb: "Meme formats and comedic sketches built to be shared" },
+  { id: "apps-tech",       portfolio: "ai-ugc",  label: "Apps & Tech",       blurb: "App demos and software shown in real use" },
+  { id: "talking-head",    portfolio: "editing", label: "Talking Head & Podcast", blurb: "Founder clips, podcast cuts and direct-response edits" },
+  { id: "real-estate",     portfolio: "editing", label: "Real Estate",       blurb: "Listing reels, agent-led tours and property walkthroughs" },
 ];
+
+const categoryPortfolio = new Map(categories.map((c) => [c.id, c.portfolio]));
+
+export const portfolioOf = (video: WorkVideo): PortfolioId =>
+  categoryPortfolio.get(video.category) ?? defaultPortfolio;
+
+export const isPortfolioId = (value: string): value is PortfolioId =>
+  portfolios.some((p) => p.id === value);
 
 export type VideoSource =
   | { kind: "youtube"; youtubeId: string }

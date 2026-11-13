@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   categories,
+  defaultPortfolio,
+  isPortfolioId,
+  portfolioOf,
+  portfolios,
+  PORTFOLIO_EVENT,
   work,
   type CategoryId,
+  type PortfolioId,
   type WorkVideo,
 } from "@/src/data/work";
 import WorkCard from "./WorkCard";
@@ -15,10 +21,39 @@ type Filter = CategoryId | "all";
 const workPath = (slug: string) => `/work/${slug}`;
 const slugFromPath = (path: string) => /^\/work\/([^/]+)\/?$/.exec(path)?.[1] ?? null;
 const findVideo = (slug: string | null) => work.find((v) => v.slug === slug) ?? null;
+const portfolioFromHash = () => {
+  const id = window.location.hash.slice(1);
+  return isPortfolioId(id) ? id : null;
+};
 
 export default function WorkShowcase({ initialSlug = null }: { initialSlug?: string | null }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [active, setActive] = useState<WorkVideo | null>(() => findVideo(initialSlug));
+  // A /work/<slug> URL opens the portfolio that video belongs to; otherwise a
+  // /#<portfolio> link picks one, so each portfolio can be shared on its own.
+  const [portfolio, setPortfolio] = useState<PortfolioId>(() => {
+    const video = findVideo(initialSlug);
+    return video ? portfolioOf(video) : portfolioFromHash() ?? defaultPortfolio;
+  });
+
+  const choosePortfolio = useCallback((id: PortfolioId) => {
+    setPortfolio(id);
+    setFilter("all");
+  }, []);
+
+  // The navbar's portfolio links push /#<portfolio> and fire hashchange.
+  useEffect(() => {
+    const onHash = () => {
+      const id = portfolioFromHash();
+      if (id) choosePortfolio(id);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [choosePortfolio]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(PORTFOLIO_EVENT, { detail: portfolio }));
+  }, [portfolio]);
   // True when this page pushed the /work/<slug> history entry, so closing can pop it.
   const pushed = useRef(false);
 
@@ -55,18 +90,29 @@ export default function WorkShowcase({ initialSlug = null }: { initialSlug?: str
   // never opens a video.
   const drag = useRef({ down: false, startX: 0, startScroll: 0, moved: false });
 
+  const portfolioWork = useMemo(() => work.filter((v) => portfolioOf(v) === portfolio), [portfolio]);
+  const portfolioCategories = useMemo(
+    () => categories.filter((c) => c.portfolio === portfolio),
+    [portfolio]
+  );
+
   const visible = useMemo(
-    () => (filter === "all" ? work : work.filter((v) => v.category === filter)),
-    [filter]
+    () => (filter === "all" ? portfolioWork : portfolioWork.filter((v) => v.category === filter)),
+    [filter, portfolioWork]
   );
   const vertical = useMemo(() => visible.filter((v) => v.orientation === "vertical"), [visible]);
   const landscape = useMemo(() => visible.filter((v) => v.orientation === "landscape"), [visible]);
 
   const counts = useMemo(() => {
-    const map = new Map<Filter, number>([["all", work.length]]);
-    for (const c of categories) map.set(c.id, work.filter((v) => v.category === c.id).length);
+    const map = new Map<Filter, number>([["all", portfolioWork.length]]);
+    for (const c of portfolioCategories) map.set(c.id, portfolioWork.filter((v) => v.category === c.id).length);
     return map;
-  }, []);
+  }, [portfolioWork, portfolioCategories]);
+
+  const portfolioCounts = useMemo(
+    () => new Map(portfolios.map((p) => [p.id, work.filter((v) => portfolioOf(v) === p.id).length])),
+    []
+  );
 
   const syncProgress = useCallback(() => {
     const el = railRef.current;
@@ -89,13 +135,13 @@ export default function WorkShowcase({ initialSlug = null }: { initialSlug?: str
     };
   }, [syncProgress]);
 
-  // Reset the rail when the filter changes so a new set starts from the left,
-  // and re-measure since the new set may or may not overflow.
+  // Reset the rail when the filter or portfolio changes so a new set starts
+  // from the left, and re-measure since the new set may or may not overflow.
   useEffect(() => {
     railRef.current?.scrollTo({ left: 0, behavior: "auto" });
     const raf = requestAnimationFrame(syncProgress);
     return () => cancelAnimationFrame(raf);
-  }, [filter, syncProgress]);
+  }, [filter, portfolio, syncProgress]);
 
   const scrollByCards = (direction: 1 | -1) => {
     const el = railRef.current;
@@ -124,7 +170,7 @@ export default function WorkShowcase({ initialSlug = null }: { initialSlug?: str
   };
 
   const activeBlurb = filter === "all"
-    ? "AI commercials, film scenes, product campaigns, creator-style ads and short-form edits across every category."
+    ? portfolios.find((p) => p.id === portfolio)?.blurb ?? ""
     : categories.find((c) => c.id === filter)?.blurb ?? "";
 
   return (
@@ -160,15 +206,61 @@ export default function WorkShowcase({ initialSlug = null }: { initialSlug?: str
             </h2>
           </div>
           <p className="max-w-md text-[#555555] text-lg font-medium lg:pb-2">
-            AI commercials made with Seedance. Filter by category, hover to
-            preview, and click to watch with sound.
+            Two portfolios, kept separate. Pick the one you&apos;re here for,
+            hover to preview, and click to watch with sound.
           </p>
+        </div>
+
+        {/* Anchors for the navbar's /#ai-ugc and /#editing links. */}
+        {portfolios.map((p) => (
+          <span key={p.id} id={p.id} aria-hidden className="absolute top-0 scroll-mt-24 md:scroll-mt-28" />
+        ))}
+
+        {/* ── Portfolio switch ── */}
+        <div className="w-full max-w-[90rem] mx-auto px-6 md:px-12 mb-8 md:mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4" role="tablist" aria-label="Choose a portfolio">
+            {portfolios.map((p, i) => {
+              const isActive = portfolio === p.id;
+              return (
+                <button
+                  key={p.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    if (isActive) return;
+                    choosePortfolio(p.id);
+                    if (window.location.pathname === "/") window.history.replaceState(null, "", `/#${p.id}`);
+                  }}
+                  className={`text-left rounded-2xl md:rounded-3xl border p-5 md:p-7 transition-all duration-300 cursor-pointer
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#32A3E6]
+                    ${isActive
+                      ? "bg-[#111111] border-[#111111] text-white shadow-[0_16px_40px_rgba(0,0,0,0.18)]"
+                      : "bg-white border-[#e4e4e4] text-[#111111] hover:border-[#111111]"}`}
+                >
+                  <span className="flex items-center justify-between gap-4 mb-4">
+                    <span className={`font-space text-[11px] font-bold uppercase tracking-[0.2em] ${isActive ? "text-[#32A3E6]" : "text-[#999999]"}`}>
+                      Portfolio {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className={`font-space text-[11px] font-bold uppercase tracking-[0.12em] tabular-nums ${isActive ? "text-white/60" : "text-[#aaaaaa]"}`}>
+                      {portfolioCounts.get(p.id) ?? 0} videos
+                    </span>
+                  </span>
+                  <span className="block font-corpta text-3xl md:text-4xl font-medium uppercase tracking-tighter leading-[0.95]">
+                    {p.label}
+                  </span>
+                  <span className={`mt-3 block text-sm md:text-base font-medium ${isActive ? "text-white/70" : "text-[#555555]"}`}>
+                    {p.tagline}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Category filter ── */}
         <div className="w-full max-w-[90rem] mx-auto px-6 md:px-12 mb-3">
           <div className="filter-row flex lg:flex-wrap gap-2.5 overflow-x-auto lg:overflow-visible pb-2 -mx-1 px-1" role="tablist" aria-label="Filter work by category">
-            {([{ id: "all" as Filter, label: "All work" }, ...categories]).map((c) => {
+            {([{ id: "all" as Filter, label: "All" }, ...portfolioCategories]).map((c) => {
               const isActive = filter === c.id;
               return (
                 <button

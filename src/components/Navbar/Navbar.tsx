@@ -4,6 +4,29 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
+import { defaultPortfolio, isPortfolioId, PORTFOLIO_EVENT, type PortfolioId } from "@/src/data/work";
+
+type NavItem = { name: string; href: string; portfolio?: PortfolioId };
+
+// Both portfolio links land in the #work section; each switches the showcase
+// to its own portfolio.
+const desktopItems: NavItem[] = [
+  { name: "About", href: "/#about" },
+  { name: "Services", href: "/#services" },
+  { name: "AI & UGC", href: "/#ai-ugc", portfolio: "ai-ugc" },
+  { name: "Editing", href: "/#editing", portfolio: "editing" },
+];
+
+const mobileItems: NavItem[] = [
+  { name: "About", href: "/#about" },
+  { name: "Services", href: "/#services" },
+  { name: "AI & UGC", href: "/#ai-ugc", portfolio: "ai-ugc" },
+  { name: "Video Editing", href: "/#editing", portfolio: "editing" },
+  { name: "Contact", href: "/contact" },
+];
+
+/** The page section a hash belongs to: portfolio hashes live inside #work. */
+const sectionForHash = (id: string) => (isPortfolioId(id) ? "work" : id);
 
 /** Smooth-scroll to a section id; retries while the node is missing (e.g. dynamic imports). */
 function scrollToAnchorId(id: string) {
@@ -28,7 +51,35 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [portfolio, setPortfolio] = useState<PortfolioId>(defaultPortfolio);
   const pathname = usePathname();
+
+  // The showcase reports which portfolio it is showing.
+  useEffect(() => {
+    const onPortfolio = (e: Event) => setPortfolio((e as CustomEvent<PortfolioId>).detail);
+    window.addEventListener(PORTFOLIO_EVENT, onPortfolio);
+    return () => window.removeEventListener(PORTFOLIO_EVENT, onPortfolio);
+  }, []);
+
+  const isItemActive = (item: NavItem) => {
+    if (!item.href.startsWith("/#")) return pathname === item.href;
+    const section = sectionForHash(item.href.split("#")[1]);
+    return activeSection === section && (!item.portfolio || item.portfolio === portfolio);
+  };
+
+  // Scrolls in place on the home page; elsewhere the Link navigates to /#id.
+  const handleAnchorClick = (e: React.MouseEvent, item: NavItem) => {
+    if (!item.href.startsWith("/#")) return;
+    const id = item.href.split("#")[1];
+    setActiveSection(sectionForHash(id));
+    if (pathname === "/") {
+      e.preventDefault();
+      scrollToAnchorId(id);
+      window.history.pushState(null, "", `/#${id}`);
+      // pushState doesn't fire hashchange; the showcase listens for it to switch portfolio.
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    }
+  };
 
   const logoLettersRef = useRef<(HTMLSpanElement | null)[]>([]);
 
@@ -76,7 +127,7 @@ export default function Navbar() {
 
     // Set initial active state if loaded with hash
     if (window.location.hash) {
-      setActiveSection(window.location.hash.slice(1));
+      setActiveSection(sectionForHash(window.location.hash.slice(1)));
     } else {
       handleScrollTarget();
     }
@@ -127,29 +178,13 @@ export default function Navbar() {
 
           {/* Centre nav links */}
           <div className="hidden md:flex items-center gap-6 lg:gap-8">
-            {[
-              { name: "About", href: "/#about" },
-              { name: "Services", href: "/#services" },
-              { name: "Work", href: "/#work" },
-            ].map((item) => {
-              const isActive = item.href.startsWith("/#")
-                ? activeSection === item.href.split("#")[1]
-                : pathname === item.href;
+            {desktopItems.map((item) => {
+              const isActive = isItemActive(item);
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  onClick={(e) => {
-                    if (item.href.startsWith("/#")) {
-                      const id = item.href.split("#")[1];
-                      setActiveSection(id);
-                      if (pathname === "/") {
-                        e.preventDefault();
-                        scrollToAnchorId(id);
-                        window.history.pushState(null, "", `/#${id}`);
-                      }
-                    }
-                  }}
+                  onClick={(e) => handleAnchorClick(e, item)}
                   className="relative flex flex-col items-center group mix-blend-multiply"
                 >
                   <span className={`whitespace-nowrap text-sm font-medium transition-colors duration-300 ${isActive ? "text-[#111111]" : "text-[#555555] group-hover:text-[#111111]"
@@ -215,26 +250,13 @@ export default function Navbar() {
           </button>
 
           <div className="flex flex-col gap-10">
-            {[
-              { name: "About", href: "/#about" },
-              { name: "Services", href: "/#services" },
-              { name: "Work", href: "/#work" },
-              { name: "Contact", href: "/contact" },
-            ].map((item) => (
+            {mobileItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={(e) => {
                   closeMobileMenu();
-                  if (item.href.startsWith("/#")) {
-                    const id = item.href.split("#")[1];
-                    setActiveSection(id);
-                    if (pathname === "/") {
-                      e.preventDefault();
-                      scrollToAnchorId(id);
-                      window.history.pushState(null, "", `/#${id}`);
-                    }
-                  }
+                  handleAnchorClick(e, item);
                 }}
                 className="font-space text-3xl font-black uppercase text-[#111111] hover:text-[#32A3E6] hover:drop-shadow-[0_0_8px_rgba(50,163,230,0.5)] transition-all"
               >
